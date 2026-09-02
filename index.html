@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>داشبورد مالی فراگستر</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Vazirmatn', Tahoma, sans-serif !important; -webkit-tap-highlight-color: transparent; }
+  
+  body { background-color: #f1f5f9; }
+  
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+  
+  .clean-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+
+  /* رنگ‌های استاندارد مالی */
+  .text-debit { color: #059669 !important; font-weight: 700; } 
+  .bg-debit { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+  .text-credit { color: #e11d48 !important; font-weight: 700; } 
+  .bg-credit { background-color: #fff1f2 !important; border-color: #fecdd3 !important; }
+
+  /* ساختار جدول و مدیریت متن (حل مشکل عکس شما) */
+  .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: separate; border-spacing: 0; min-width: 100%; } 
+  
+  th, td { text-align: right; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  th { cursor: pointer; user-select: none; transition: background-color 0.2s; position: relative; }
+  th:hover { background-color: #f8fafc !important; }
+
+  /* استایل‌های فشردگی (Density) بازنویسی شده برای موبایل
+  */
+  
+  /* حالت 0: اندازه محتوا (Fit) */
+  .density-content { width: auto; table-layout: auto; }
+  .density-content th, .density-content td { padding: 0.6rem 0.75rem; white-space: nowrap; font-size: 0.85rem; }
+  .density-content .wrap-text { white-space: nowrap !important; } /* در این حالت هیچ‌چیز نمی‌شکند */
+  
+  /* حالت 1: تمام عرض (Full Width) - جلوگیری از بیرون زدن متن */
+  .density-full { width: 100%; table-layout: auto; }
+  .density-full th, .density-full td { padding: 0.5rem; font-size: 0.8rem; }
+  .density-full td:not(.wrap-text) { white-space: nowrap; } /* ستون‌های عادی مثل پول یا تاریخ نشکنند */
+  .density-full .wrap-text { white-space: normal !important; min-width: 150px; max-width: 300px; line-height: 1.6; word-wrap: break-word; } /* ستون شرح در این حالت بشکند */
+  
+  /* حالت 2: عریض (Spacious) */
+  .density-spacious { width: auto; table-layout: auto; }
+  .density-spacious th, .density-spacious td { padding: 1.25rem 0.8rem; white-space: nowrap; font-size: 0.9rem; }
+  .density-spacious .wrap-text { white-space: normal !important; min-width: 250px; line-height: 1.8; }
+
+  /* فریز شدن هوشمند ستون‌ها */
+  .sticky-col-1 { position: sticky; right: 0; z-index: 15; border-left: 1px solid #cbd5e1; }
+  .sticky-col-2 { position: sticky; z-index: 10; border-left: 1px solid #cbd5e1; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.05); }
+  
+  thead th { background-color: #ffffff; color: #0f172a; font-weight: 800; border-bottom: 2px solid #0f172a; z-index: 1; }
+  thead .sticky-col-1 { z-index: 30; }
+  thead .sticky-col-2 { z-index: 20; }
+
+  /* رنگ‌بندی ردیف‌ها (وضوح بالا برای گروه‌بندی) */
+  .row-group-1 { background-color: #ffffff; }
+  .row-group-alt { background-color: #f8fafc; } /* ملایم */
+  .row-group-2 { background-color: #e2e8f0; } /* تیره و واضح */
+  
+  .row-group-1 td.sticky-col-1, .row-group-1 td.sticky-col-2 { background-color: #ffffff; }
+  .row-group-alt td.sticky-col-1, .row-group-alt td.sticky-col-2 { background-color: #f8fafc; }
+  .row-group-2 td.sticky-col-1, .row-group-2 td.sticky-col-2 { background-color: #e2e8f0; }
+
+  tr:hover { background-color: #cbd5e1 !important; }
+  tr:hover td.sticky-col-1, tr:hover td.sticky-col-2 { background-color: #cbd5e1 !important; }
+  
+  .loader-spinner { border: 3px solid #e2e8f0; border-top: 3px solid #0f172a; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-slate-200">
+
+  <div id="col-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm max-h-[85vh] flex flex-col">
+      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+        <h3 class="font-bold text-slate-800 text-base">نمایش ستون‌ها</h3>
+        <button onclick="toggleColMenu()" class="p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="col-menu-content" class="p-2 overflow-y-auto flex-1 flex flex-col gap-1"></div>
+    </div>
+  </div>
+
+  <header class="bg-slate-900 sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="p-1.5 bg-slate-800 rounded-lg text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+      </div>
+      <div><h1 class="text-base font-bold tracking-tight text-white">داشبورد مالی فراگستر</h1></div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 flex flex-col gap-3 sm:gap-4">
+    
+    <div class="clean-panel rounded-xl p-1 flex items-center gap-1 overflow-x-auto hide-scrollbar bg-white">
+      <div id="tabs-container" class="flex gap-1 w-full"></div>
+    </div>
+
+    <div id="summary-cards" class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3"></div>
+
+    <div class="clean-panel rounded-xl p-2 sm:p-3 flex flex-col md:flex-row gap-2 sm:gap-3 justify-between">
+      
+      <div class="relative w-full md:w-80">
+        <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="جستجو..." class="w-full pl-3 pr-10 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-slate-800 focus:border-slate-800 outline-none transition-all placeholder:font-normal">
+        <svg class="w-4 h-4 text-slate-400 absolute right-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+
+      <div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;">
+        
+        <button onclick="cycleDensity()" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm font-bold transition-colors whitespace-nowrap shrink-0 text-slate-700">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+          <span id="density-label">اندازه محتوا</span>
+        </button>
+        
+        <button onclick="toggleColMenu()" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm font-bold transition-colors whitespace-nowrap shrink-0 text-slate-700">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          ستون‌ها
+        </button>
+
+        <button onclick="fetchDataFromAPI()" class="flex items-center gap-1.5 px-3 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg text-xs sm:text-sm font-bold transition-colors whitespace-nowrap shrink-0 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          بروزرسانی
+        </button>
+      </div>
+    </div>
+
+    <div class="clean-panel rounded-xl flex-1 flex flex-col relative overflow-hidden z-10" style="min-height: 55vh;">
+      
+      <div id="loading-state" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center">
+        <div class="loader-spinner mb-3"></div>
+        <p class="text-xs sm:text-sm font-bold text-slate-800 animate-pulse mt-2">دریافت اطلاعات...</p>
+      </div>
+
+      <div id="error-state" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center hidden">
+        <div class="text-rose-600 mb-2"><svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+        <p id="error-message" class="text-slate-800 font-bold text-sm mb-4">خطا در ارتباط با سرور</p>
+        <button onclick="fetchDataFromAPI()" class="px-5 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold">تلاش مجدد</button>
+      </div>
+
+      <div id="empty-state" class="absolute inset-0 z-40 bg-white flex flex-col items-center justify-center hidden">
+        <p class="text-slate-400 font-medium text-sm">اطلاعاتی یافت نشد.</p>
+      </div>
+
+      <div id="table-wrapper" class="table-container flex-1">
+        <table id="main-table" class="density-content">
+          <thead><tr id="table-head-row"></tr></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="p-2 sm:p-3 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div class="text-[11px] sm:text-xs font-bold text-slate-600" id="page-info"></div>
+          <div class="h-4 w-px bg-slate-300 hidden sm:block"></div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] sm:text-xs font-bold text-slate-500">تعداد:</span>
+            <select id="rows-per-page-select" onchange="changeRowsPerPage(this.value)" class="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded focus:ring-1 focus:ring-slate-800 block px-1 py-0.5 outline-none cursor-pointer">
+              <option value="20">۲۰</option>
+              <option value="50">۵۰</option>
+              <option value="100">۱۰۰</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-1 w-full sm:w-auto justify-end" id="pagination-controls"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycby_SuHCGjpL8IHlElNIEHnLPxu7d4167V0MoeV-NTYkJKlecp3EBbbkakGf2n-mFJWk/exec"; 
+    
+    const STATE = {
+      tabs: [],
+      currentTab: null,
+      schema: {}, 
+      rawData: {},
+      filteredData: [],
+      page: 1,
+      rowsPerPage: 50,
+      density: 0,
+      densityClasses: ['density-content', 'density-full', 'density-spacious'],
+      densityLabels: ['اندازه محتوا', 'تمام عرض', 'عریض'],
+      sortCol: null,
+      sortAsc: true
+    };
+
+    function replaceArabicChars(str) {
+      if (!str) return '';
+      return String(str).replace(/ي/g, 'ی').replace(/ك/g, 'ک');
+    }
+
+    function toPersianDigits(str) {
+      if (str === null || str === undefined) return '';
+      const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+      return String(str).replace(/\d/g, x => persianDigits[x]);
+    }
+
+    function extractNumber(val) {
+      if (val === null || val === undefined || val === '') return NaN;
+      let str = String(val);
+      const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+      for (let i = 0; i < 10; i++) str = str.replace(persianDigits[i], i);
+      let clean = str.replace(/[^\d.-]/g, ''); 
+      if (!clean || clean === '-' || clean === '.') return NaN;
+      return parseFloat(clean);
+    }
+
+    function isFinancialColumn(colName) {
+      const norm = replaceArabicChars(colName).replace(/ |\u200C/g, ''); 
+      return norm.includes('بدهکار') || norm.includes('بستانکار') || norm.includes('طلبکار') || 
+             norm.includes('مانده') || norm.includes('مبلغ') || norm.includes('ورودی') || norm.includes('خروجی');
+    }
+
+    function formatFa(num) {
+      if (num === null || isNaN(num)) return '-';
+      let formatted = Math.abs(num).toLocaleString('en-US'); 
+      return toPersianDigits(formatted); 
+    }
+
+    function buildDynamicSchema(sheetsArray) {
+      STATE.tabs = [];
+      STATE.schema = {};
+      STATE.rawData = {};
+
+      const preferredOrder = ["لیست مالی (بدهکاران)", "لیست مالی (طلبکاران)", "صورت ریز کل مشتریان", "موجودی براساس مشتری", "موجودی کالا"];
+      
+      sheetsArray.sort((a, b) => {
+        let idxA = preferredOrder.indexOf(a.sheetName);
+        let idxB = preferredOrder.indexOf(b.sheetName);
+        if (idxA === -1) idxA = 99;
+        if (idxB === -1) idxB = 99;
+        return idxA - idxB;
+      });
+
+      sheetsArray.forEach((sheet) => {
+        const tabId = sheet.sheetName;
+        STATE.tabs.push({ id: tabId, title: sheet.sheetName });
+        STATE.rawData[tabId] = sheet.data;
+
+        let cols = [{ id: 'row_index', title: 'ردیف', type: 'index', visible: true, stickyIndex: 0 }];
+        
+        if (sheet.data.length > 0) {
+          const keys = Object.keys(sheet.data[0]);
+          
+          let anchor1Id = null;
+          let anchor2Id = null;
+
+          if (tabId === 'صورت ریز کل مشتریان') {
+             // در صورت ریز، لنگر اول شماره سند و لنگر دوم عنوان حساب است
+             let normSanad = replaceArabicChars('شماره سند').replace(/ |\u200C/g, '');
+             let normHesab = replaceArabicChars('عنوان حساب').replace(/ |\u200C/g, '');
+             
+             keys.forEach(key => {
+                 let nKey = replaceArabicChars(key).replace(/ |\u200C/g, '');
+                 if (nKey.includes(normSanad)) anchor1Id = key;
+                 if (nKey.includes(normHesab)) anchor2Id = key;
+             });
+          } else {
+             // سایر تب‌ها
+             anchor1Id = 'row_index';
+             let targetStickyKeyword = 'عنوان حساب';
+             if (tabId === 'موجودی براساس مشتری') targetStickyKeyword = 'نام مشتری';
+             else if (tabId === 'موجودی کالا') targetStickyKeyword = 'نام کالا';
+             
+             let normTarget = replaceArabicChars(targetStickyKeyword).replace(/ |\u200C/g, '');
+             keys.forEach(key => {
+                 if (replaceArabicChars(key).replace(/ |\u200C/g, '').includes(normTarget)) anchor2Id = key;
+             });
+          }
+
+          keys.forEach((key) => {
+            const normKey = replaceArabicChars(key);
+            let type = 'string';
+            if (isFinancialColumn(key)) type = 'money';
+            if (normKey.includes('شرح') || normKey.includes('توضیحات') || normKey.includes('کالا')) type = 'longstring';
+            
+            let stickyIndex = 0;
+            if (key === anchor1Id) stickyIndex = 1;
+            else if (key === anchor2Id) stickyIndex = 2;
+
+            cols.push({ id: key, title: key, type: type, visible: true, stickyIndex: stickyIndex });
+          });
+          
+          // تنظیم ترتیب اختصاصی صورت ریز: ردیف، شماره سند، تاریخ، عنوان حساب، شرح، بدهکار، بستانکار، مانده
+          if (tabId === 'صورت ریز کل مشتریان') {
+             const exactOrder = ['row_index', 'شمارهسند', 'تاریخ', 'عنوانحساب', 'شرح', 'بدهکار', 'بستانکار', 'مانده'];
+             cols.sort((a, b) => {
+                let normA = replaceArabicChars(a.id).replace(/ |\u200C/g, '');
+                let normB = replaceArabicChars(b.id).replace(/ |\u200C/g, '');
+                let idxA = exactOrder.findIndex(kw => normA.includes(kw));
+                let idxB = exactOrder.findIndex(kw => normB.includes(kw));
+                if(a.id === 'row_index') idxA = 0;
+                if(b.id === 'row_index') idxB = 0;
+                if (idxA === -1) idxA = 99;
+                if (idxB === -1) idxB = 99;
+                return idxA - idxB;
+             });
+          }
+        }
+        
+        if (tabId !== 'صورت ریز کل مشتریان') {
+           let rCol = cols.find(c => c.id === 'row_index');
+           if(rCol) rCol.stickyIndex = 1;
+        } else {
+           // در صورت ریز، ستون ردیف فریز نیست
+           let rCol = cols.find(c => c.id === 'row_index');
+           if(rCol) rCol.stickyIndex = 0; 
+        }
+
+        STATE.schema[tabId] = cols;
+      });
+
+      if (!STATE.currentTab && STATE.tabs.length > 0) STATE.currentTab = STATE.tabs[0].id;
+    }
+
+    async function fetchDataFromAPI() {
+      showLoadingState();
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error("Network error");
+        const data = await res.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          buildDynamicSchema(data);
+          loadPreferences(); 
+          if(STATE.tabs.some(t => t.id === STATE.currentTab)) switchTab(STATE.currentTab);
+          else switchTab(STATE.tabs[0].id);
+        } else {
+          showEmptyState();
+        }
+      } catch (err) {
+        showErrorState("خطا در دریافت اطلاعات. وضعیت اینترنت را بررسی کنید.");
+      }
+    }
+
+    function switchTab(tabId) {
+      STATE.currentTab = tabId;
+      document.getElementById('search-input').value = '';
+      STATE.sortCol = null;
+      STATE.sortAsc = true;
+      
+      let placeholderText = 'جستجو...';
+      if (tabId === 'لیست مالی (بدهکاران)' || tabId === 'لیست مالی (طلبکاران)' || tabId === 'صورت ریز کل مشتریان') {
+         placeholderText = 'جستجو عنوان حساب...';
+      } else if (tabId === 'موجودی براساس مشتری') {
+         placeholderText = 'جستجو نام مشتری...';
+      } else if (tabId === 'موجودی کالا') {
+         placeholderText = 'جستجو نام کالا...';
+      }
+      document.getElementById('search-input').placeholder = placeholderText;
+      
+      const tabsHtml = STATE.tabs.map(t => `
+        <button onclick="switchTab('${t.id}')" class="px-4 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all whitespace-nowrap ${STATE.currentTab === t.id ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 bg-white hover:bg-slate-50 border border-slate-100'}">
+          ${toPersianDigits(t.title)}
+        </button>
+      `).join('');
+      document.getElementById('tabs-container').innerHTML = tabsHtml;
+
+      buildColumnMenu();
+      handleSearch();
+    }
+
+    function applySort() {
+      if (!STATE.sortCol) return;
+      const schema = STATE.schema[STATE.currentTab];
+      const colDef = schema.find(c => c.id === STATE.sortCol);
+      if (!colDef) return;
+
+      STATE.filteredData.sort((a, b) => {
+        let valA = a[STATE.sortCol];
+        let valB = b[STATE.sortCol];
+
+        if (colDef.type === 'money' || colDef.type === 'index') {
+          let numA = extractNumber(valA) || 0;
+          let numB = extractNumber(valB) || 0;
+          return STATE.sortAsc ? numA - numB : numB - numA;
+        } else {
+          let strA = String(valA || '').trim();
+          let strB = String(valB || '').trim();
+          return STATE.sortAsc ? strA.localeCompare(strB, 'fa') : strB.localeCompare(strA, 'fa');
+        }
+      });
+    }
+
+    function handleSort(colId) {
+      if (STATE.sortCol === colId) {
+        STATE.sortAsc = !STATE.sortAsc; 
+      } else {
+        STATE.sortCol = colId;
+        STATE.sortAsc = true; 
+      }
+      
+      applySort();
+      precomputeRowClasses(); 
+      renderTableHeaders();
+      renderTableBody();
+    }
+
+    function precomputeRowClasses() {
+      let currentSanad = null;
+      let isGroupOdd = true;
+      
+      const schema = STATE.schema[STATE.currentTab] || [];
+      const sanadCol = schema.find(c => {
+         let norm = replaceArabicChars(c.title).replace(/ |\u200C/g, '');
+         return norm.includes('شمارهسند');
+      })?.id;
+
+      STATE.filteredData.forEach((row, idx) => {
+         if (STATE.currentTab === 'صورت ریز کل مشتریان' && sanadCol) {
+             let rowSanad = row[sanadCol];
+             if (rowSanad !== currentSanad && rowSanad !== '' && rowSanad !== undefined) {
+                 isGroupOdd = !isGroupOdd;
+                 currentSanad = rowSanad;
+             }
+             row._bgClass = isGroupOdd ? 'row-group-1' : 'row-group-2';
+         } else {
+             row._bgClass = idx % 2 === 0 ? 'row-group-1' : 'row-group-alt';
+         }
+      });
+    }
+
+    function handleSearch() {
+      const q = toPersianDigits(document.getElementById('search-input').value.toLowerCase().trim());
+      const data = STATE.rawData[STATE.currentTab] || [];
+      
+      if (!q) { 
+        STATE.filteredData = [...data]; 
+      } else {
+        let targetColKeyword = '';
+        if (STATE.currentTab === 'لیست مالی (بدهکاران)' || 
+            STATE.currentTab === 'لیست مالی (طلبکاران)' || 
+            STATE.currentTab === 'صورت ریز کل مشتریان') {
+            targetColKeyword = 'عنوان حساب';
+        } else if (STATE.currentTab === 'موجودی براساس مشتری') {
+            targetColKeyword = 'نام مشتری';
+        } else if (STATE.currentTab === 'موجودی کالا') {
+            targetColKeyword = 'نام کالا';
+        }
+
+        let targetColId = null;
+        if (targetColKeyword) {
+            const schema = STATE.schema[STATE.currentTab] || [];
+            const col = schema.find(c => {
+                let normTitle = replaceArabicChars(c.title).replace(/ |\u200C/g, '');
+                let normKw = replaceArabicChars(targetColKeyword).replace(/ |\u200C/g, '');
+                return normTitle.includes(normKw);
+            });
+            if (col) targetColId = col.id;
+        }
+
+        STATE.filteredData = data.filter(row => {
+            if (targetColId) {
+                let val = row[targetColId];
+                if (val === null || val === undefined) return false;
+                return String(val).toLowerCase().includes(q) || toPersianDigits(val).includes(q);
+            } else {
+                return Object.values(row).some(v => String(v).toLowerCase().includes(q) || toPersianDigits(v).includes(q));
+            }
+        });
+      }
+      
+      STATE.page = 1;
+      applySort(); 
+      precomputeRowClasses();
+      buildSummaryCards();
+      renderTableHeaders();
+      renderTableBody();
+      renderPagination();
+    }
+
+    function buildSummaryCards() {
+      const data = STATE.filteredData;
+      const schema = STATE.schema[STATE.currentTab] || [];
+      const container = document.getElementById('summary-cards');
+      
+      let cards = [];
+      cards.push({ t: 'تعداد رکوردها', v: data.length, cls: 'text-slate-800 border-slate-100 bg-white' });
+
+      const findColByKeywords = (keywords) => {
+         const found = schema.find(c => {
+             const norm = replaceArabicChars(c.title).replace(/ |\u200C/g, '');
+             return keywords.some(kw => norm.includes(kw));
+         });
+         return found ? found.id : null;
+      };
+
+      if (STATE.currentTab === 'لیست مالی (بدهکاران)') {
+        let debKey = findColByKeywords(['بدهکار', 'مانده', 'مبلغ']);
+        if (debKey) {
+           let sum = data.reduce((acc, row) => acc + (extractNumber(row[debKey]) || 0), 0);
+           cards.push({ t: 'جمع کل بدهی', v: sum, cls: 'text-debit bg-debit' }); 
+        }
+      } 
+      else if (STATE.currentTab === 'لیست مالی (طلبکاران)') {
+        let credKey = findColByKeywords(['بستانکار', 'طلبکار', 'مانده', 'مبلغ']);
+        if (credKey) {
+           let sum = data.reduce((acc, row) => acc + (extractNumber(row[credKey]) || 0), 0);
+           cards.push({ t: 'جمع کل طلب‌ها', v: sum, cls: 'text-credit bg-credit' }); 
+        }
+      } 
+      else if (STATE.currentTab === 'صورت ریز کل مشتریان') {
+        let debKey = findColByKeywords(['بدهکار']);
+        let credKey = findColByKeywords(['بستانکار', 'طلبکار']);
+        
+        let sDeb = 0, sCred = 0;
+        data.forEach(r => {
+           if(debKey) sDeb += (extractNumber(r[debKey]) || 0);
+           if(credKey) sCred += (extractNumber(r[credKey]) || 0);
+        });
+        
+        let sBal = sDeb - sCred; 
+
+        if (debKey) cards.push({ t: 'بدهکاران', v: sDeb, cls: 'text-debit bg-debit' });
+        if (credKey) cards.push({ t: 'بستانکاران', v: sCred, cls: 'text-credit bg-credit' });
+        cards.push({ t: 'مانده کل', v: sBal, cls: sBal >= 0 ? 'text-debit bg-debit' : 'text-credit bg-credit' });
+      }
+      else if (STATE.currentTab.includes('موجودی')) {
+        let inKey = findColByKeywords(['ورودی']);
+        let outKey = findColByKeywords(['خروجی']);
+        let balKey = findColByKeywords(['مانده']);
+        
+        let sumIn = 0, sumOut = 0, sumBal = 0;
+        data.forEach(r => {
+           if(inKey) sumIn += (extractNumber(r[inKey]) || 0);
+           if(outKey) sumOut += (extractNumber(r[outKey]) || 0);
+           if(balKey) sumBal += (extractNumber(r[balKey]) || 0);
+        });
+
+        if (inKey) cards.push({ t: 'ورودی', v: sumIn, cls: 'text-debit bg-debit' });
+        if (outKey) cards.push({ t: 'خروجی', v: sumOut, cls: 'text-credit bg-credit' });
+        if (balKey) cards.push({ t: 'مانده', v: sumBal, cls: sumBal >= 0 ? 'text-debit bg-debit' : 'text-credit bg-credit' });
+      }
+
+      container.innerHTML = cards.map(c => `
+        <div class="rounded-lg p-3 border shadow-sm flex flex-col relative ${c.cls}">
+          <span class="text-[11px] sm:text-xs font-bold opacity-80 mb-1 z-10">${c.t}</span>
+          <span class="text-sm sm:text-base font-black z-10 font-mono" dir="ltr">${formatFa(c.v)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderTableHeaders() {
+      const schema = (STATE.schema[STATE.currentTab] || []).filter(c => c.visible);
+      document.getElementById('main-table').className = STATE.densityClasses[STATE.density];
+      
+      const isSooratRiz = STATE.currentTab === 'صورت ریز کل مشتریان';
+      // عرض لنگر اول در موبایل کوچکتر است
+      const sticky1Width = isSooratRiz ? 65 : 40; 
+      
+      document.getElementById('table-head-row').innerHTML = schema.map(col => {
+        let stickyCls = '';
+        let styleStr = '';
+        
+        if (col.stickyIndex === 1) {
+            stickyCls = 'sticky-col-1';
+            styleStr = `min-width:${sticky1Width}px; max-width:${sticky1Width}px; right:0;`;
+        } else if (col.stickyIndex === 2) {
+            stickyCls = 'sticky-col-2';
+            styleStr = `right:${sticky1Width}px;`;
+        }
+        
+        let sortIndicator = '';
+        if (STATE.sortCol === col.id) {
+            sortIndicator = STATE.sortAsc 
+              ? `<svg class="w-3 h-3 text-slate-800 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"></path></svg>` 
+              : `<svg class="w-3 h-3 text-slate-800 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>`;
+        } else {
+            sortIndicator = `<svg class="w-3 h-3 text-slate-300 inline-block mr-1 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>`;
+        }
+        
+        let cellClass = col.type === 'longstring' ? "wrap-text" : "";
+
+        return `<th class="${stickyCls} group" style="${styleStr}" onclick="handleSort('${col.id}')" title="مرتب‌سازی">
+                  <div class="flex items-center justify-between gap-1">
+                      <span>${toPersianDigits(col.title)}</span>
+                      ${sortIndicator}
+                  </div>
+                </th>`;
+      }).join('');
+      showTableState();
+    }
+
+    function renderTableBody() {
+      const schema = (STATE.schema[STATE.currentTab] || []).filter(c => c.visible);
+      const start = (STATE.page - 1) * STATE.rowsPerPage;
+      const end = start + STATE.rowsPerPage;
+      const pageData = STATE.filteredData.slice(start, end);
+
+      const isSooratRiz = STATE.currentTab === 'صورت ریز کل مشتریان';
+      const sticky1Width = isSooratRiz ? 65 : 40;
+
+      document.getElementById('table-body').innerHTML = pageData.map((row, idx) => {
+        const rowClass = row._bgClass || 'row-odd';
+        const cells = schema.map(col => {
+          let val = row[col.id];
+          let content = val || '-';
+          
+          let stickyCls = '';
+          let styleStr = '';
+          
+          if (col.stickyIndex === 1) {
+              stickyCls = 'sticky-col-1 bg-inherit';
+              styleStr = `min-width:${sticky1Width}px; max-width:${sticky1Width}px; right:0;`;
+          } else if (col.stickyIndex === 2) {
+              stickyCls = 'sticky-col-2 bg-inherit';
+              styleStr = `right:${sticky1Width}px;`;
+          }
+          
+          // اضافه کردن کلاس wrap-text به ستون‌های متنی طولانی
+          let cellClass = col.type === 'longstring' ? "wrap-text" : "";
+          
+          if (col.type === 'index') {
+              let realIndex = STATE.rawData[STATE.currentTab].indexOf(row) + 1;
+              content = `<span class="text-slate-500 font-mono font-bold text-[11px] sm:text-xs">${toPersianDigits(formatFa(realIndex))}</span>`;
+          } else if (col.type === 'longstring') {
+              content = `<div class="${cellClass} text-[13px] sm:text-sm font-bold text-slate-800">${toPersianDigits(val||'-')}</div>`;
+          } else if (col.type === 'money') {
+            let num = extractNumber(val);
+            let c = 'text-slate-800 font-mono';
+            let normT = replaceArabicChars(col.title).replace(/ |\u200C/g, '');
+            let normTab = replaceArabicChars(STATE.currentTab).replace(/ |\u200C/g, '');
+            
+            if(normT.includes('بدهکار') || normT.includes('ورودی')) c = 'text-debit font-mono';
+            else if(normT.includes('بستانکار') || normT.includes('طلبکار') || normT.includes('خروجی')) c = 'text-credit font-mono';
+            else if(normT.includes('مانده') || normT.includes('مبلغ')) {
+               if(normTab.includes('طلبکار')) c = 'text-credit font-mono'; 
+               else c = num >= 0 ? 'text-debit font-mono' : 'text-credit font-mono'; 
+            }
+            content = `<span class="${c} text-[13px] sm:text-sm" dir="ltr">${formatFa(num)}</span>`;
+          } else {
+             content = `<span class="${cellClass} text-slate-700 font-medium text-[13px] sm:text-sm">${toPersianDigits(val||'-')}</span>`;
+          }
+          return `<td class="${stickyCls}" style="${styleStr}">${content}</td>`;
+        }).join('');
+        
+        return `<tr class="${rowClass}">${cells}</tr>`;
+      }).join('');
+    }
+
+    function renderPagination() {
+      const total = STATE.filteredData.length;
+      const totalPages = Math.ceil(total / STATE.rowsPerPage) || 1;
+      let startInfo = total === 0 ? 0 : (STATE.page - 1) * STATE.rowsPerPage + 1;
+      let endInfo = Math.min(STATE.page * STATE.rowsPerPage, total);
+      
+      document.getElementById('page-info').innerHTML = `نمایش <b class="text-slate-800">${toPersianDigits(startInfo)}</b> تا <b class="text-slate-800">${toPersianDigits(endInfo)}</b> از <b class="text-slate-800">${toPersianDigits(total)}</b>`;
+      
+      let btns = '';
+      btns += `<button onclick="goToPage(${STATE.page - 1})" ${STATE.page === 1 ? 'disabled':''} class="px-3 py-1.5 rounded border border-slate-200 text-[11px] sm:text-xs font-bold text-slate-700 disabled:opacity-40 bg-white hover:bg-slate-100 transition-colors">قبلی</button>`;
+      btns += `<button onclick="goToPage(${STATE.page + 1})" ${STATE.page === totalPages ? 'disabled':''} class="px-3 py-1.5 rounded border border-slate-200 text-[11px] sm:text-xs font-bold text-slate-700 disabled:opacity-40 bg-white hover:bg-slate-100 transition-colors">بعدی</button>`;
+      document.getElementById('pagination-controls').innerHTML = btns;
+    }
+
+    function goToPage(p) {
+      const max = Math.ceil(STATE.filteredData.length / STATE.rowsPerPage);
+      if(p >= 1 && p <= max) { STATE.page = p; renderTableBody(); renderPagination(); }
+    }
+    
+    function changeRowsPerPage(val) {
+      STATE.rowsPerPage = parseInt(val);
+      STATE.page = 1;
+      savePreferences();
+      renderTableBody();
+      renderPagination();
+    }
+
+    function cycleDensity() {
+      STATE.density = (STATE.density + 1) % 3; 
+      document.getElementById('density-label').textContent = STATE.densityLabels[STATE.density];
+      renderTableHeaders(); renderTableBody(); savePreferences();
+    }
+
+    function toggleColMenu() {
+      const modal = document.getElementById('col-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    function buildColumnMenu() {
+      const schema = STATE.schema[STATE.currentTab] || [];
+      const menu = document.getElementById('col-menu-content');
+      menu.innerHTML = schema.map((col) => `
+        <label class="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors ${col.stickyIndex ? 'opacity-40 cursor-not-allowed' : ''}">
+          <input type="checkbox" onchange="toggleColumn('${col.id}', this.checked)" ${col.visible ? 'checked' : ''} ${col.stickyIndex ? 'disabled' : ''} class="rounded border-slate-300 text-slate-800 focus:ring-slate-800 w-4 h-4">
+          <span class="text-sm font-bold text-slate-700 truncate w-full" title="${col.title}">${toPersianDigits(col.title)}</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleColumn(colId, isVisible) {
+      const col = STATE.schema[STATE.currentTab].find(c => c.id === colId);
+      if(col && !col.stickyIndex) {
+        col.visible = isVisible;
+        savePreferences(); 
+        renderTableHeaders(); 
+        renderTableBody();
+      }
+    }
+
+    function savePreferences() {
+      localStorage.setItem('fa_dash_prefs_v9', JSON.stringify({ 
+          schema: STATE.schema, 
+          density: STATE.density,
+          rowsPerPage: STATE.rowsPerPage 
+      }));
+    }
+
+    function loadPreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('fa_dash_prefs_v9'));
+        if(saved) {
+          if(saved.density !== undefined) {
+            STATE.density = saved.density;
+            document.getElementById('density-label').textContent = STATE.densityLabels[STATE.density];
+          }
+          if(saved.rowsPerPage !== undefined) {
+             STATE.rowsPerPage = saved.rowsPerPage;
+             const selectEl = document.getElementById('rows-per-page-select');
+             if(selectEl) selectEl.value = STATE.rowsPerPage;
+          }
+          if(saved.schema) {
+             Object.keys(saved.schema).forEach(tabKey => {
+                if(STATE.schema[tabKey]) {
+                   STATE.schema[tabKey].forEach(c => {
+                      const savedCol = saved.schema[tabKey].find(sc => sc.id === c.id);
+                      if(savedCol !== undefined) c.visible = savedCol.visible;
+                   });
+                }
+             });
+          }
+        }
+      } catch(e) { console.error(e); }
+      
+      const selectEl = document.getElementById('rows-per-page-select');
+      if(selectEl && !selectEl.value) selectEl.value = STATE.rowsPerPage;
+    }
+
+    function hideAllStates() {
+      ['loading-state', 'error-state', 'empty-state', 'table-wrapper'].forEach(id => document.getElementById(id).style.display = 'none');
+    }
+    function showLoadingState() { hideAllStates(); document.getElementById('loading-state').style.display = 'flex'; }
+    function showErrorState(msg) { hideAllStates(); document.getElementById('error-message').textContent = msg; document.getElementById('error-state').style.display = 'flex'; }
+    function showEmptyState() { hideAllStates(); document.getElementById('empty-state').style.display = 'flex'; }
+    function showTableState() { hideAllStates(); document.getElementById('table-wrapper').style.display = 'block'; }
+
+    document.getElementById('col-modal').addEventListener('click', (e) => {
+      if(e.target === document.getElementById('col-modal')) toggleColMenu();
+    });
+
+    document.addEventListener('DOMContentLoaded', fetchDataFromAPI);
+  </script>
+</body>
+</html>
